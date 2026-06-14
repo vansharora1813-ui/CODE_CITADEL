@@ -183,3 +183,56 @@ measured_queries_per_store = 1000
 
 This is a local benchmark over a small literary dataset. It is useful for comparing setup overhead and small-corpus query latency, but it is not a substitute for large-scale ANN benchmarking. Backend-specific defaults can differ, especially around indexing algorithms and persistence behavior, so document any non-default backend settings with published results.
 
+
+## Benchmark Results
+
+### Indexing Time
+
+Moss indexed the dataset substantially faster than both Qdrant and Chroma.
+
+| Store | Indexing Time (s) |
+|--------|--------|
+| Moss | ~0.02 |
+| Qdrant | ~0.21 |
+| Chroma | ~1.07 |
+
+<p align="center">
+  <img src="results/graphs/indexing_time.png" alt="Indexing Time Benchmark" width="900">
+</p>
+
+---
+
+### Query Latency Distribution
+
+The latency distribution shows Moss delivering the lowest and most consistent query latency, followed by Qdrant and then Chroma.
+
+<p align="center">
+  <img src="results/graphs/latency_distribution.png" alt="Latency Distribution Benchmark" width="900">
+</p>
+
+---
+
+### P50 Query Latency
+
+| Store | P50 Latency (ms) |
+|--------|--------|
+| Moss | ~0.60 |
+| Qdrant | ~2.23 |
+| Chroma | ~3.83 |
+
+<p align="center">
+  <img src="results/graphs/p50_latency.png" alt="P50 Latency Benchmark" width="900">
+</p>
+
+---
+
+### Key Findings
+
+- Moss achieved the fastest indexing performance.
+- Moss delivered the lowest median query latency (P50).
+- Qdrant outperformed Chroma in both indexing and query latency.
+- Chroma exhibited the highest indexing overhead and query latency in this benchmark.
+- Across all measured metrics, Moss demonstrated the strongest performance on this workload.
+
+> Note: These results were obtained on a local benchmark using a relatively small literary corpus. Performance characteristics may differ for larger datasets, different hardware, ANN configurations, persistence settings, or distributed deployments.
+
