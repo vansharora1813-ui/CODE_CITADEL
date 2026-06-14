@@ -4,225 +4,49 @@ This repository benchmarks Moss, Qdrant, and Chroma on semantic search over Jane
 
 The benchmark is designed to compare vector store behavior, not embedding latency. Text chunks and benchmark questions are embedded once with `BAAI/bge-small-en-v1.5`; every backend receives the same vectors, metadata, query vectors, `top_k`, warmup rounds, and measured query rounds.
 
+---
+
 ## Metrics
 
-- Indexing Time: wall-clock seconds to insert all chunk vectors after resetting the backend.
-- P50 Latency: median measured query latency in milliseconds.
-- P99 Latency: 99th percentile measured query latency in milliseconds.
+- **Indexing Time**: wall-clock seconds to insert all chunk vectors after resetting the backend.
+- **P50 Latency**: median measured query latency in milliseconds.
+- **P99 Latency**: 99th percentile query latency in milliseconds.
 
-## Dataset
-
-- Source: Project Gutenberg plain-text *Pride and Prejudice*
-- Download URL: `https://www.gutenberg.org/cache/epub/1342/pg1342.txt`
-- Preprocessing: Gutenberg header/footer removal, whitespace normalization, character chunking with overlap.
-- Default chunk size: `1800` characters
-- Default overlap: `250` characters
-
-## Embedding Model
-
-- Model: `BAAI/bge-small-en-v1.5`
-- Library: `sentence-transformers`
-- Embeddings are normalized before storage.
-- Chunk and question embeddings are persisted under `data/embeddings/`.
-
-## Benchmark Questions
-
-The benchmark uses 50 fixed questions stored in `data/questions/benchmark_questions.json`. They cover plot, character, relationship, setting, family, and theme questions from the novel.
-
-## Repository Structure
-
-```text
-benchmark/
-  data/           # download, cleaning, chunking, fixed question generation
-  embeddings/     # model loading and embedding persistence
-  stores/         # Moss, Qdrant, and Chroma adapters
-  runners/        # indexing/query benchmark orchestration
-  reporting/      # summaries and graph generation
-data/
-  questions/      # committed 50-question benchmark set
-  raw/            # downloaded novel text
-  processed/      # generated chunks
-  embeddings/     # generated vectors and metadata
-results/
-  raw/            # indexing and query CSVs
-  summary/        # aggregate metrics
-  graphs/         # PNG charts
-scripts/
-tests/
-```
-
-## Installation
-
-```bash
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-```
-
-On macOS or Linux:
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-## Moss Configuration
-
-Qdrant runs in local in-memory mode and Chroma runs as a local persistent client under `stores_data/chroma`.
-
-Moss must be provided by your chosen Moss deployment. The adapter supports either:
-
-- `MOSS_HTTP_URL`, pointing at a Moss-compatible HTTP service.
-- A Python module named `moss`, or `MOSS_PYTHON_MODULE`, exposing `Client.reset_collection`, `Client.upsert`, and `Client.search`.
-
-HTTP route contract:
-
-```text
-DELETE /collections/{collection}
-PUT    /collections/{collection}
-POST   /collections/{collection}/points
-POST   /collections/{collection}/search
-```
-
-The search route should return:
-
-```json
-{
-  "results": [
-    {"id": "chunk_0001", "score": 0.92, "metadata": {}}
-  ]
-}
-```
-
-## Running
-
-Run the complete pipeline:
-
-```bash
-python -m benchmark run-all
-```
-
-Run phases individually:
-
-```bash
-python -m benchmark download-data
-python -m benchmark preprocess
-python -m benchmark generate-questions
-python -m benchmark embed
-python -m benchmark run
-python -m benchmark summarize
-python -m benchmark plot
-```
-
-Run a subset while validating setup:
-
-```bash
-python -m benchmark run --stores qdrant chroma
-```
-
-## Outputs
-
-Raw indexing metrics:
-
-```text
-results/raw/indexing_times.csv
-```
-
-Raw query latency metrics:
-
-```text
-results/raw/query_latencies.csv
-```
-
-Summary:
-
-```text
-results/summary/benchmark_summary.csv
-```
-
-Graphs:
-
-```text
-results/graphs/indexing_time.png
-results/graphs/p50_latency.png
-results/graphs/p99_latency.png
-results/graphs/latency_distribution.png
-```
-
-## Methodology
-
-For each store:
-
-1. Reset the collection.
-2. Insert the exact same chunk vectors and metadata.
-3. Run warmup queries using the fixed question embeddings.
-4. Run measured query rounds.
-5. Record one latency row per measured query.
-6. Summarize P50 and P99 from the measured query latency distribution.
-
-Defaults:
-
-```text
-top_k = 5
-warmup_rounds = 2
-measured_rounds = 20
-questions = 50
-measured_queries_per_store = 1000
-```
-
-## Reproducibility Notes
-
-- Embeddings are generated once and reused across all backends.
-- Query embeddings are precomputed, so model inference time is excluded from latency metrics.
-- The question file is committed and stable.
-- Backends are reset before indexing.
-- Results should be reported with local hardware, Python version, dependency versions, and whether Moss is package-backed or HTTP-backed.
-
-## Limitations
-
-This is a local benchmark over a small literary dataset. It is useful for comparing setup overhead and small-corpus query latency, but it is not a substitute for large-scale ANN benchmarking. Backend-specific defaults can differ, especially around indexing algorithms and persistence behavior, so document any non-default backend settings with published results.
-
+---
 
 ## Benchmark Results
 
 ### Indexing Time
 
-Moss indexed the dataset substantially faster than both Qdrant and Chroma.
+Moss shows significantly faster indexing compared to Qdrant and Chroma.
 
-| Store | Indexing Time (s) |
-|--------|--------|
-| Moss | ~0.02 |
-| Qdrant | ~0.21 |
-| Chroma | ~1.07 |
+| Store   | Indexing Time (s) |
+|----------|------------------|
+| Moss     | ~0.02 |
+| Qdrant   | ~0.21 |
+| Chroma   | ~1.07 |
 
-<p align="center">
-  <img src="results/graphs/indexing_time.png" alt="Indexing Time Benchmark" width="900">
-</p>
+![Indexing Time](results/graphs/indexing_time.png)
 
 ---
 
 ### Query Latency Distribution
 
-The latency distribution shows Moss delivering the lowest and most consistent query latency, followed by Qdrant and then Chroma.
+Moss consistently delivers the lowest and most stable query latency distribution.
 
-<p align="center">
-  <img src="results/graphs/latency_distribution.png" alt="Latency Distribution Benchmark" width="900">
-</p>
+![Latency Distribution](results/graphs/latency_distribution.png)
 
 ---
 
 ### P50 Query Latency
 
-| Store | P50 Latency (ms) |
-|--------|--------|
-| Moss | ~0.60 |
-| Qdrant | ~2.23 |
-| Chroma | ~3.83 |
+| Store   | P50 Latency (ms) |
+|----------|------------------|
+| Moss     | ~0.60 |
+| Qdrant   | ~2.23 |
+| Chroma   | ~3.83 |
 
-<p align="center">
-  <img src="results/graphs/p50_latency.png" alt="P50 Latency Benchmark" width="900">
-</p>
+![P50 Latency](results/graphs/p50_latency.png)
 
 ---
 
@@ -230,9 +54,80 @@ The latency distribution shows Moss delivering the lowest and most consistent qu
 
 - Moss achieved the fastest indexing performance.
 - Moss delivered the lowest median query latency (P50).
-- Qdrant outperformed Chroma in both indexing and query latency.
-- Chroma exhibited the highest indexing overhead and query latency in this benchmark.
-- Across all measured metrics, Moss demonstrated the strongest performance on this workload.
+- Qdrant performed better than Chroma across all metrics.
+- Chroma had the highest indexing and query latency overhead.
+- Overall, Moss performed best on this benchmark workload.
 
-> Note: These results were obtained on a local benchmark using a relatively small literary corpus. Performance characteristics may differ for larger datasets, different hardware, ANN configurations, persistence settings, or distributed deployments.
+---
 
+## Dataset
+
+- Source: Project Gutenberg *Pride and Prejudice*
+- URL: https://www.gutenberg.org/cache/epub/1342/pg1342.txt
+- Chunk size: 1800 characters
+- Overlap: 250 characters
+
+---
+
+## Embedding Model
+
+- Model: `BAAI/bge-small-en-v1.5`
+- Library: `sentence-transformers`
+- Embeddings are normalized before storage.
+
+---
+
+## Benchmark Questions
+
+50 fixed questions stored in:
+
+```
+data/questions/benchmark_questions.json
+```
+
+Covering:
+- Characters
+- Plot
+- Relationships
+- Themes
+- Settings
+
+---
+
+## Methodology
+
+Each store:
+
+1. Reset collection
+2. Insert identical embeddings
+3. Run warmup queries
+4. Run measured queries
+5. Record latency distribution
+6. Compute P50 and P99
+
+---
+
+## Results Interpretation
+
+This benchmark measures:
+
+- Vector indexing efficiency
+- Retrieval latency
+- Consistency under repeated queries
+
+It does **not** measure embedding model speed or large-scale ANN behavior.
+
+---
+
+## Reproducibility
+
+- Same embedding model used for all stores
+- Precomputed embeddings reused
+- Identical dataset and questions
+- Backend reset before each run
+
+---
+
+## Limitations
+
+This is a small-scale benchmark on a single dataset and is intended for relative comparison only. Real-world performance may differ based on hardware, dataset size, and backend configuration.
